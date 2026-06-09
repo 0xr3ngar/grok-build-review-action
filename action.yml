@@ -1,0 +1,180 @@
+name: 'Grok Build PR Review'
+description: >-
+  AI pull request reviews powered by your Grok Build (SuperGrok) subscription.
+  Posts a live status comment, then inline review comments for every issue found.
+  No XAI_API_KEY needed — uses your grok CLI login session.
+author: '0xr3ngar'
+
+branding:
+  icon: 'eye'
+  color: 'gray-dark'
+
+inputs:
+  grok_auth_json:
+    description: >-
+      Contents of ~/.grok/auth.json from a machine where you ran `grok login`.
+      Store it as a repository secret (e.g. GROK_AUTH_JSON).
+    required: true
+  github_token:
+    description: 'Token used to read the PR and post comments/reviews.'
+    required: false
+    default: ${{ github.token }}
+  pr_number:
+    description: 'PR number to review. Defaults to the PR that triggered the workflow.'
+    required: false
+    default: ''
+  model:
+    description: 'Model to use (e.g. grok-build). Empty = CLI default.'
+    required: false
+    default: ''
+  effort:
+    description: 'Effort level: low | medium | high | xhigh | max. Empty = CLI default.'
+    required: false
+    default: ''
+  max_turns:
+    description: 'Maximum agentic turns for the headless grok run.'
+    required: false
+    default: '50'
+  fail_on:
+    description: 'When to fail the check: never | bugs | any.'
+    required: false
+    default: 'never'
+  status_comments:
+    description: 'Post/update a live status comment on the PR ("Grokking this..." etc).'
+    required: false
+    default: 'true'
+  max_diff_kb:
+    description: 'Maximum diff size (KB) embedded in the prompt before truncation.'
+    required: false
+    default: '300'
+
+outputs:
+  verdict:
+    description: 'Review verdict: clean | issues | error'
+    value: ${{ steps.finish.outputs.verdict }}
+  issue_count:
+    description: 'Total number of issues found.'
+    value: ${{ steps.finish.outputs.issue_count }}
+  bug_count:
+    description: 'Number of bug-severity issues found.'
+    value: ${{ steps.finish.outputs.bug_count }}
+  review_url:
+    description: 'URL of the posted GitHub review (empty if no issues).'
+    value: ${{ steps.finish.outputs.review_url }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Grok CLI
+      shell: bash
+      run: |
+        if command -v grok >/dev/null 2>&1; then
+          echo "grok already installed"
+        else
+          curl -fsSL https://x.ai/cli/install.sh | bash
+        fi
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        echo "$HOME/.grok/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.local/bin:$HOME/.grok/bin:$PATH"
+        grok --version
+
+    - name: Configure Grok auth
+      shell: bash
+      env:
+        GROK_AUTH_JSON: ${{ inputs.grok_auth_json }}
+      run: |
+        if [ -z "$GROK_AUTH_JSON" ]; then
+          echo "::error::grok_auth_json input is empty. Copy ~/.grok/auth.json from a logged-in machine into the GROK_AUTH_JSON secret."
+          exit 1
+        fi
+        mkdir -p "$HOME/.grok"
+        printf '%s' "$GROK_AUTH_JSON" > "$HOME/.grok/auth.json"
+        chmod 600 "$HOME/.grok/auth.json"
+        node -e 'JSON.parse(require("fs").readFileSync(require("os").homedir() + "/.grok/auth.json", "utf8"))' \
+          || { echo "::error::grok_auth_json is not valid JSON"; exit 1; }
+
+    - name: Collect PR context
+      id: ctx
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        PR_NUMBER="${INPUT_PR_NUMBER:-$EVENT_PR_NUMBER}"
+        if [ -z "$PR_NUMBER" ]; then
+          echo "::error::No PR number. Trigger on pull_request or pass the pr_number input."
+          exit 1
+        fi
+        WORK="$RUNNER_TEMP/grok-review"
+        mkdir -p "$WORK"
+        gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+          --json number,title,body,url,headRefOid,baseRefName,headRefName,additions,deletions,changedFiles,files \
+          > "$WORK/pr.json"
+        gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > "$WORK/pr.diff"
+        if [ ! -s "$WORK/pr.diff" ]; then
+          echo "::notice::PR #$PR_NUMBER has an empty diff. Nothing to review."
+        fi
+        echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+        echo "work=$WORK" >> "$GITHUB_OUTPUT"
+
+    - name: Post status comment
+      if: ${{ inputs.status_comments == 'true' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ steps.ctx.outputs.pr_number }}
+        WORK: ${{ steps.ctx.outputs.work }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: node "$GITHUB_ACTION_PATH/scripts/main.mjs" start
+
+    - name: Run Grok review
+      shell: bash
+      env:
+        WORK: ${{ steps.ctx.outputs.work }}
+        MODEL: ${{ inputs.model }}
+        EFFORT: ${{ inputs.effort }}
+        MAX_TURNS: ${{ inputs.max_turns }}
+        MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
+        GROK_DISABLE_AUTOUPDATER: '1'
+      run: |
+        node "$GITHUB_ACTION_PATH/scripts/main.mjs" prompt
+
+        EXTRA_ARGS=()
+        [ -n "$MODEL" ] && EXTRA_ARGS+=(-m "$MODEL")
+        [ -n "$EFFORT" ] && EXTRA_ARGS+=(--effort "$EFFORT")
+
+        set +e
+        # No tokens in env here on purpose: grok runs read-only with no shell access.
+        grok --prompt-file "$WORK/prompt.md" \
+          --output-format json \
+          --yolo \
+          --tools "read_file,grep,list_dir" \
+          --max-turns "$MAX_TURNS" \
+          --no-auto-update \
+          --cwd "$GITHUB_WORKSPACE" \
+          > "$WORK/grok-output.json" 2> "$WORK/grok-stderr.log"
+        echo "$?" > "$WORK/grok-exit"
+        set -e
+
+        echo "grok exit code: $(cat "$WORK/grok-exit")"
+        echo "--- last stderr lines ---"
+        tail -n 30 "$WORK/grok-stderr.log" || true
+
+    - name: Post review
+      id: finish
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ steps.ctx.outputs.pr_number }}
+        WORK: ${{ steps.ctx.outputs.work }}
+        FAIL_ON: ${{ inputs.fail_on }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: node "$GITHUB_ACTION_PATH/scripts/main.mjs" finish
+
+    - name: Cleanup credentials
+      if: ${{ always() }}
+      shell: bash
+      run: rm -f "$HOME/.grok/auth.json"
