@@ -65,6 +65,7 @@ That's it. Open a PR and watch it cook.
 | `effort`          | CLI default           | `low` \| `medium` \| `high` \| `xhigh` \| `max`. |
 | `max_turns`       | `50`                  | Max agentic turns for the headless run. |
 | `fail_on`         | `never`               | Fail the check on findings: `never` \| `bugs` \| `any`. |
+| `roast_level`     | `playful`             | How spicy the review is: `professional` \| `playful` \| `savage` \| `diabolical`. |
 | `status_comments` | `true`                | Post/update the live status comment. |
 | `max_diff_kb`     | `300`                 | Diff size embedded in the prompt before truncation (grok can still read full files from the checkout). |
 
@@ -76,6 +77,26 @@ That's it. Open a PR and watch it cook.
 | `issue_count` | Total issues found. |
 | `bug_count`   | Bug-severity issues found. |
 | `review_url`  | URL of the posted review (empty when clean). |
+
+## Roast levels
+
+It's grok — it should be allowed to be funny. `roast_level` controls the personality of everything it posts: the status comments, the review summary, and a per-issue `quip` one-liner rendered under each finding. The technical content is identical at every level; only the delivery changes.
+
+| Level          | Vibe |
+|----------------|------|
+| `professional` | No jokes, no commentary. Senior-engineer-at-a-bank energy. |
+| `playful`      | *(default)* Dry humor, light teasing. Witty colleague. |
+| `savage`       | Sarcasm at will, mild profanity, roasts every finding. Rival team's tech lead reviewing you live on stage. |
+| `diabolical`   | Full theatrical-villain mode. Merciless, dramatic, profanity permitted. Treats each bug as a personal insult that must be avenged. |
+
+```yaml
+- uses: 0xr3ngar/grok-build-review-action@main
+  with:
+    grok_auth_json: ${{ secrets.GROK_AUTH_JSON }}
+    roast_level: diabolical   # you asked for this
+```
+
+Guardrails at every level: jokes ride on real technical findings, the code gets mocked — never the author — and an inaccurate roast is treated as the one unforgivable sin.
 
 ## How it works
 
@@ -89,6 +110,16 @@ That's it. Open a PR and watch it cook.
 ### Why not the built-in `/review --pr` skill?
 
 The grok CLI ships a first-class `/review` skill, but in PR mode it creates a **PENDING** GitHub review — and a pending review can only be submitted by the account that created it. In CI that's `github-actions[bot]`, so nobody could ever click "Submit review". This action instead has grok emit structured findings and posts them itself as an already-submitted `COMMENT` review, which is what you actually want from a bot.
+
+## Development
+
+The action's scripts are TypeScript executed directly by [Bun](https://bun.sh) (installed in the action via `oven-sh/setup-bun`) — no build step. Grok's output and all PR metadata are validated with [zod](https://zod.dev) schemas (`scripts/types.ts`).
+
+```bash
+bun install          # dev deps (typescript, @types/bun) + zod
+bun run typecheck    # tsc --noEmit, strict
+bun test             # unit tests for the diff walker and review parsing
+```
 
 ## Security notes
 

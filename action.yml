@@ -39,6 +39,12 @@ inputs:
     description: 'When to fail the check: never | bugs | any.'
     required: false
     default: 'never'
+  roast_level:
+    description: >-
+      How spicy the review comments are: professional | playful | savage | diabolical.
+      Findings stay technically accurate at every level — only the delivery changes.
+    required: false
+    default: 'playful'
   status_comments:
     description: 'Post/update a live status comment on the PR ("Grokking this..." etc).'
     required: false
@@ -78,6 +84,14 @@ runs:
         export PATH="$HOME/.local/bin:$HOME/.grok/bin:$PATH"
         grok --version
 
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Install script dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: bun install --frozen-lockfile --production
+
     - name: Configure Grok auth
       shell: bash
       env:
@@ -90,7 +104,7 @@ runs:
         mkdir -p "$HOME/.grok"
         printf '%s' "$GROK_AUTH_JSON" > "$HOME/.grok/auth.json"
         chmod 600 "$HOME/.grok/auth.json"
-        node -e 'JSON.parse(require("fs").readFileSync(require("os").homedir() + "/.grok/auth.json", "utf8"))' \
+        jq empty "$HOME/.grok/auth.json" \
           || { echo "::error::grok_auth_json is not valid JSON"; exit 1; }
 
     - name: Collect PR context
@@ -126,8 +140,9 @@ runs:
         GITHUB_REPOSITORY: ${{ github.repository }}
         PR_NUMBER: ${{ steps.ctx.outputs.pr_number }}
         WORK: ${{ steps.ctx.outputs.work }}
+        ROAST_LEVEL: ${{ inputs.roast_level }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      run: node "$GITHUB_ACTION_PATH/scripts/main.mjs" start
+      run: bun "$GITHUB_ACTION_PATH/scripts/main.ts" start
 
     - name: Run Grok review
       shell: bash
@@ -137,9 +152,10 @@ runs:
         EFFORT: ${{ inputs.effort }}
         MAX_TURNS: ${{ inputs.max_turns }}
         MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
+        ROAST_LEVEL: ${{ inputs.roast_level }}
         GROK_DISABLE_AUTOUPDATER: '1'
       run: |
-        node "$GITHUB_ACTION_PATH/scripts/main.mjs" prompt
+        bun "$GITHUB_ACTION_PATH/scripts/main.ts" prompt
 
         EXTRA_ARGS=()
         [ -n "$MODEL" ] && EXTRA_ARGS+=(-m "$MODEL")
@@ -171,8 +187,9 @@ runs:
         PR_NUMBER: ${{ steps.ctx.outputs.pr_number }}
         WORK: ${{ steps.ctx.outputs.work }}
         FAIL_ON: ${{ inputs.fail_on }}
+        ROAST_LEVEL: ${{ inputs.roast_level }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      run: node "$GITHUB_ACTION_PATH/scripts/main.mjs" finish
+      run: bun "$GITHUB_ACTION_PATH/scripts/main.ts" finish
 
     - name: Cleanup credentials
       if: ${{ always() }}
