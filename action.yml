@@ -1,8 +1,6 @@
 name: "Grok Build PR Review"
 description: >-
     AI pull request reviews powered by your Grok Build (SuperGrok) subscription.
-    Posts a live status comment, then inline review comments for every issue found.
-    No XAI_API_KEY needed — uses your grok CLI login session.
 author: "0xr3ngar"
 branding:
     icon: "eye"
