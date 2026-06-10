@@ -46,7 +46,6 @@ jobs:
 
 > **Recommended**: Use `@v1` to get the latest release in the v1 series (including future patch/minor updates).  
 > Use `@v1.0.0` (or any specific tag) if you want to pin exactly.
-```
 
 Open a PR and watch it cook.
 
@@ -60,10 +59,6 @@ The technical findings are identical at every level. The delivery is not.
 | `playful`      | The default. Dry wit and light elbow jabs from your funniest coworker.                           |
 | `savage`       | Sarcasm with citations, mild profanity. A rival tech lead reviewing you live on stage.           |
 | `diabolical`   | Maximum brutality. Takes every bug personally and asks if you have ever met an array. Good luck. |
-
-```yaml
-roast_level: diabolical
-```
 
 Guardrails at every level: the roast rides on real findings, the code gets mocked and never the author, and an inaccurate roast is the one unforgivable sin.
 
