@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { lineKey, rightSideLines } from "./diff.ts";
+import { lineKey } from "./lineKey.ts";
+import { rightSideLines } from "./rightSideLines.ts";
 
 const DIFF = `diff --git a/src/app.js b/src/app.js
 --- a/src/app.js

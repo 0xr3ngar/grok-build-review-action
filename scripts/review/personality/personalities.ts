@@ -1,13 +1,11 @@
-import { RoastLevelSchema } from "../types.ts";
-import type { Personality, RoastLevel, Severity } from "../types.ts";
+import type { RoastLevel } from "../../schemas/roastLevel.ts";
 
-export const MARKER = "<!-- grok-build-review -->";
-
-export const SEVERITY_EMOJI: Record<Severity, string> = {
-    bug: ":lady_beetle:",
-    warning: ":warning:",
-    nit: ":pinching_hand:",
-};
+export interface Personality {
+    cooking: readonly string[];
+    clean: readonly string[];
+    notes: readonly string[];
+    promptInstructions: string;
+}
 
 const GUARDRAILS = `Hard floor, regardless of tone: every claim must be technically exact and defensible — an
 inaccurate roast is the one unforgivable sin. No slurs, no harassment, nothing about anyone's
@@ -126,13 +124,3 @@ bitterly and move on.
 ${GUARDRAILS}`,
     },
 };
-
-export const parseRoastLevel = (raw: string | undefined): RoastLevel => {
-    const parsed = RoastLevelSchema.safeParse((raw ?? "").trim().toLowerCase());
-    if (parsed.success) return parsed.data;
-    if (raw?.trim()) console.log(`::warning::Unknown roast_level '${raw}', using 'playful'.`);
-    return "playful";
-};
-
-export const pick = (lines: readonly string[]): string =>
-    lines[Math.floor(Math.random() * lines.length)] ?? "";

@@ -1,38 +1,54 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { optionalEnv, readJsonFile, requireEnv, workPath } from "../lib/env.ts";
-import { PERSONALITIES, parseRoastLevel } from "../lib/personality.ts";
-import { PrMetaSchema } from "../types.ts";
+import { optionalEnv } from "../utils/optionalEnv.ts";
+import { requireEnv } from "../utils/requireEnv.ts";
+import { readJsonFile } from "../utils/readJsonFile.ts";
+import { WORK_FILES } from "../utils/workFiles.ts";
+import { workPath } from "../utils/workPath.ts";
+import { PERSONALITIES } from "../review/personality/personalities.ts";
+import { parseRoastLevel } from "../review/personality/parseRoastLevel.ts";
+import { PrMetaSchema } from "../schemas/prMeta.ts";
 
 const TEMPLATE_PATH = path.join(import.meta.dir, "..", "prompt_template.md");
-const REPO_DOCS = ["AGENTS.md", "CLAUDE.md"];
-const REPO_DOC_CAP = 8 * 1024;
+const TEMPLATE_VAR_REGEX = /\$([a-z_]+)/g;
+const REPO_DOC_FILES = ["AGENTS.md", "CLAUDE.md"];
+const REPO_DOC_MAX_BYTES = 8 * 1024;
+const DEFAULT_MAX_DIFF_KB = "300";
+const DOC_TRUNCATION_NOTE = "[truncated]";
+const DIFF_TRUNCATION_NOTE =
+    "[NOTE: diff truncated — use read_file to inspect the remaining changed files listed in the PR metadata]";
 
-const truncate = (text: string, maxBytes: number, note: string): string => {
+const truncate = (text: string, maxBytes: number, note: string) => {
     if (Buffer.byteLength(text) <= maxBytes) return text;
     return `${Buffer.from(text).subarray(0, maxBytes).toString("utf8")}\n\n${note}`;
 };
 
-const repoInstructions = (): string => {
+const repoDocSections = () => {
+    const workspace = optionalEnv("GITHUB_WORKSPACE");
+    if (!workspace) return [];
+
+    const sections: string[] = [];
+    for (const name of REPO_DOC_FILES) {
+        const file = path.join(workspace, name);
+        if (!existsSync(file)) continue;
+
+        const content = truncate(
+            readFileSync(file, "utf8").trim(),
+            REPO_DOC_MAX_BYTES,
+            DOC_TRUNCATION_NOTE,
+        );
+        if (content) sections.push(`### From ${name} (repo root)\n\n${content}`);
+    }
+    return sections;
+};
+
+const repoInstructions = () => {
     const sections: string[] = [];
 
     const custom = optionalEnv("CUSTOM_INSTRUCTIONS").trim();
     if (custom) sections.push(`### From the workflow configuration\n\n${custom}`);
-
-    const workspace = optionalEnv("GITHUB_WORKSPACE");
-    if (workspace) {
-        for (const name of REPO_DOCS) {
-            const file = path.join(workspace, name);
-            if (!existsSync(file)) continue;
-            const content = truncate(
-                readFileSync(file, "utf8").trim(),
-                REPO_DOC_CAP,
-                "[truncated]",
-            );
-            if (content) sections.push(`### From ${name} (repo root)\n\n${content}`);
-        }
-    }
+    sections.push(...repoDocSections());
 
     if (sections.length === 0) return "";
     return [
@@ -45,9 +61,9 @@ const repoInstructions = (): string => {
     ].join("\n");
 };
 
-export const cmdPrompt = (): void => {
-    const pr = readJsonFile(workPath("pr.json"), PrMetaSchema);
-    const maxKb = Number(optionalEnv("MAX_DIFF_KB", "300"));
+export const cmdPrompt = () => {
+    const pr = readJsonFile(workPath(WORK_FILES.prMeta), PrMetaSchema);
+    const maxDiffBytes = Number(optionalEnv("MAX_DIFF_KB", DEFAULT_MAX_DIFF_KB)) * 1024;
     const personality = PERSONALITIES[parseRoastLevel(process.env.ROAST_LEVEL)];
 
     const vars: Record<string, string | number> = {
@@ -64,17 +80,17 @@ export const cmdPrompt = (): void => {
         personality: personality.promptInstructions,
         repo_instructions: repoInstructions(),
         diff: truncate(
-            readFileSync(workPath("pr.diff"), "utf8"),
-            maxKb * 1024,
-            "[NOTE: diff truncated — use read_file to inspect the remaining changed files listed in the PR metadata]",
+            readFileSync(workPath(WORK_FILES.prDiff), "utf8"),
+            maxDiffBytes,
+            DIFF_TRUNCATION_NOTE,
         ),
     };
 
     const prompt = readFileSync(TEMPLATE_PATH, "utf8").replace(
-        /\$([a-z_]+)/g,
+        TEMPLATE_VAR_REGEX,
         (match, name: string) => (name in vars ? String(vars[name]) : match),
     );
 
-    writeFileSync(workPath("prompt.md"), prompt);
+    writeFileSync(workPath(WORK_FILES.prompt), prompt);
     console.log(`Prompt written (${prompt.length} chars)`);
 };
