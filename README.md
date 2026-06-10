@@ -1,4 +1,4 @@
-# grok-build-review-action
+# <picture><source media="(prefers-color-scheme: dark)" srcset="assets/grok-dark.png"><img src="assets/grok-light.png" width="32" height="32" align="center" alt="Grok"></picture> grok-build-review-action
 
 PR reviews from your **Grok Build (SuperGrok) subscription**. No `XAI_API_KEY`, no extra bill.
 
