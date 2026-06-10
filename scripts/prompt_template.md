@@ -30,16 +30,16 @@ End your final response with EXACTLY ONE block in this format:
 
 <<<GROK_REVIEW>>>
 {
-"summary": "2-4 sentence overall assessment of the PR: what it does and whether it looks correct.",
+"summary": "2-4 sentence overall assessment of the PR, written ENTIRELY in the Personality voice.",
 "issues": [
 {
 "file": "path/from/repo/root.ext",
 "line": 123,
 "severity": "bug",
-"title": "Short one-line title",
-"body": "What is wrong and why it matters. Be specific and concrete.",
-"suggestion": "How to fix it (optional, may be empty string)",
-"quip": "One-liner joke/roast about this specific issue, in the personality voice (optional, may be empty string)"
+"title": "Short one-line title, in the Personality voice",
+"body": "What is broken and why it matters, written ENTIRELY in the Personality voice. The technical facts must be exact underneath the delivery.",
+"suggestion": "The fix, delivered in the same voice (optional, may be empty string)",
+"quip": "One extra standalone punchline about this specific issue (optional, may be empty string)"
 }
 ]
 }
@@ -52,7 +52,8 @@ Hard rules for the block:
 - "line" must be an integer line number in the NEW version of the file (the RIGHT side of the diff) and must be a line that is visible in the diff hunks below (added or context line). If a finding spans a range, pick the single most representative line.
 - "file" must exactly match a path from the diff (no leading ./ or a/ b/ prefixes).
 - If there are no issues: "issues": [].
-- Write "summary", "title", and "body" in the personality voice. Spicy delivery never replaces substance: every claim must stay technically precise. "quip" is one extra standalone punchline per issue.
+- "summary", "title", "body", and "suggestion" must ALL be written in the Personality voice. The placeholder text in the example above describes the content, not the tone — the tone comes exclusively from the Personality section.
+- Self-check before emitting the block: if a title or body would read fine in a corporate review tool but the personality is not professional, it is wrong — rewrite it in voice first. Substance is non-negotiable either way: every claim stays technically precise.
 - Output the block exactly once, at the very end of your response.
 
 === PR DIFF ===
