@@ -39,9 +39,13 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.sha }}
 
-            - uses: 0xr3ngar/grok-build-review-action@main
+            - uses: 0xr3ngar/grok-build-review-action@v1
               with:
                   grok_auth_json: ${{ secrets.GROK_AUTH_JSON }}
+```
+
+> **Recommended**: Use `@v1` to get the latest release in the v1 series (including future patch/minor updates).  
+> Use `@v1.0.0` (or any specific tag) if you want to pin exactly.
 ```
 
 Open a PR and watch it cook.
