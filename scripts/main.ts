@@ -1,8 +1,10 @@
+import { cmdAuth } from "./commands/auth.ts";
 import { cmdFinish } from "./commands/finish.ts";
 import { cmdPrompt } from "./commands/prompt.ts";
 import { cmdStart } from "./commands/start.ts";
 
 const commands: Record<string, (() => void | Promise<void>) | undefined> = {
+    auth: cmdAuth,
     start: cmdStart,
     prompt: cmdPrompt,
     finish: cmdFinish,
@@ -12,7 +14,7 @@ const name = process.argv[2] ?? "";
 const command = commands[name];
 
 if (!command) {
-    console.log(`Unknown subcommand '${name}' (expected start | prompt | finish)`);
+    console.log(`Unknown subcommand '${name}' (expected auth | start | prompt | finish)`);
     process.exit(2);
 }
 

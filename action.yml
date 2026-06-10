@@ -12,6 +12,18 @@ inputs:
             Contents of ~/.grok/auth.json from a machine where you ran `grok login`.
             Store it as a repository secret (e.g. GROK_AUTH_JSON).
         required: true
+    sync_auth_secret:
+        description: >-
+            When true, write refreshed OAuth tokens back to the GROK_AUTH_JSON repository secret
+            after a successful refresh. Requires secret_sync_token (a PAT with repo secrets write).
+        required: false
+        default: "false"
+    secret_sync_token:
+        description: >-
+            PAT used to update GROK_AUTH_JSON after token refresh. Needs the `repo` scope (or
+            fine-grained: Actions secrets write). Ignored unless sync_auth_secret is true.
+        required: false
+        default: ""
     github_token:
         description: "Token used to read the PR and post comments/reviews."
         required: false
@@ -109,6 +121,14 @@ runs:
               chmod 600 "$HOME/.grok/auth.json"
               jq empty "$HOME/.grok/auth.json" \
                 || { echo "::error::grok_auth_json is not valid JSON"; exit 1; }
+
+        - name: Refresh Grok auth tokens
+          shell: bash
+          env:
+              SYNC_AUTH_SECRET: ${{ inputs.sync_auth_secret }}
+              SECRET_SYNC_TOKEN: ${{ inputs.secret_sync_token }}
+              GITHUB_REPOSITORY: ${{ github.repository }}
+          run: bun "$GITHUB_ACTION_PATH/scripts/main.ts" auth
 
         - name: Collect PR context
           id: ctx

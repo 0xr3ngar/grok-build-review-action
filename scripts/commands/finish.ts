@@ -29,8 +29,8 @@ import type { Verdict } from "../schemas/verdict.ts";
 import type { Personality } from "../review/personality/personalities.ts";
 
 const AUTH_EXPIRED_HINT =
-    "Most likely the auth session expired — refresh the `GROK_AUTH_JSON` secret " +
-    "(`grok login` on your machine, then copy `~/.grok/auth.json`).";
+    "Most likely the auth session expired — run `grok login` on your machine, copy `~/.grok/auth.json` " +
+    "into `GROK_AUTH_JSON`, or enable `sync_auth_secret` so refreshed tokens are written back automatically.";
 
 interface FinishContext {
     repo: string;

@@ -13,7 +13,9 @@ Installs the [grok CLI](https://x.ai/cli), logs in with your session, reviews th
 
 1. On a machine where `grok login` works: `cat ~/.grok/auth.json | pbcopy`
 2. Save it as a repo secret named `GROK_AUTH_JSON`
-3. Add `.github/workflows/grok-pr-review.yml`:
+3. _(Optional, recommended)_ Add a second secret `GROK_SECRET_SYNC_TOKEN` — a fine-grained PAT with **Actions secrets: Read and write** — and pass it as `secret_sync_token` with `sync_auth_secret: true`. The action refreshes OAuth tokens before each review and writes the rotated `refresh_token` back to `GROK_AUTH_JSON`, so you rarely need to re-upload manually.
+
+Add `.github/workflows/grok-pr-review.yml`:
 
 ```yaml
 name: Grok PR Review
@@ -42,6 +44,8 @@ jobs:
             - uses: 0xr3ngar/grok-build-review-action@v1
               with:
                   grok_auth_json: ${{ secrets.GROK_AUTH_JSON }}
+                  sync_auth_secret: true
+                  secret_sync_token: ${{ secrets.GROK_SECRET_SYNC_TOKEN }}
 ```
 
 > **Recommended**: Use `@v1` to get the latest release in the v1 series (including future patch/minor updates).  
@@ -67,6 +71,8 @@ Guardrails at every level: the roast rides on real findings, the code gets mocke
 | Input                 | Default               | Description                                                                 |
 | --------------------- | --------------------- | --------------------------------------------------------------------------- |
 | `grok_auth_json`      | _(required)_          | Contents of `~/.grok/auth.json`.                                            |
+| `sync_auth_secret`    | `false`               | Write refreshed tokens back to `GROK_AUTH_JSON` after OAuth refresh.        |
+| `secret_sync_token`   | _(empty)_             | PAT with secrets write; required when `sync_auth_secret` is true.           |
 | `github_token`        | `${{ github.token }}` | Default token posts as `github-actions[bot]`. Pass a PAT for your own name. |
 | `pr_number`           | event PR              | Review a specific PR (for `workflow_dispatch`).                             |
 | `model`               | CLI default           | e.g. `grok-build`.                                                          |
@@ -94,12 +100,13 @@ Guardrails at every level: the roast rides on real findings, the code gets mocke
 
 ## Security
 
-- `auth.json` is a refreshable credential for your xAI account. Rotate it like you mean it.
+- `auth.json` is a refreshable OAuth credential for your xAI account. The action refreshes expired access tokens automatically before each run.
+- OAuth `refresh_token` values rotate on use. If you also use `grok` locally with the same account, enable `sync_auth_secret` so CI keeps the repository secret current — otherwise the secret can fall behind and reviews start failing until you re-upload.
 - It is wiped from the runner in an `always()` cleanup step.
 - Grok runs with read-only tools, no shell, and never sees your GitHub token.
 - Fork PRs do not get secrets on plain `pull_request`, so the action simply skips them. Do not use `pull_request_target`.
 
 ## Troubleshooting
 
-- **CLI exits with no output**: session expired. `grok login` again, update the secret.
+- **CLI exits with no output**: session expired or the refresh token was rotated elsewhere. `grok login` again, update the secret, or enable `sync_auth_secret`.
 - **Findings in the review body instead of inline**: grok pointed at lines outside the diff. They get promoted, not dropped.
