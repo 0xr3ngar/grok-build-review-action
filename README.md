@@ -50,12 +50,12 @@ Open a PR and watch it cook.
 
 The technical findings are identical at every level. The delivery is not.
 
-| Level          | Vibe                                                                                                |
-| -------------- | --------------------------------------------------------------------------------------------------- |
-| `professional` | No jokes, no feelings, just findings. HR-approved.                                                  |
-| `playful`      | The default. Dry wit and light elbow jabs from your funniest coworker.                              |
-| `savage`       | Sarcasm with citations, mild profanity. A rival tech lead reviewing you live on stage.              |
-| `diabolical`   | Maximum brutality. Takes every bug personally and asks if you have ever met an array. Good luck.    |
+| Level          | Vibe                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| `professional` | No jokes, no feelings, just findings. HR-approved.                                               |
+| `playful`      | The default. Dry wit and light elbow jabs from your funniest coworker.                           |
+| `savage`       | Sarcasm with citations, mild profanity. A rival tech lead reviewing you live on stage.           |
+| `diabolical`   | Maximum brutality. Takes every bug personally and asks if you have ever met an array. Good luck. |
 
 ```yaml
 roast_level: diabolical
@@ -65,19 +65,19 @@ Guardrails at every level: the roast rides on real findings, the code gets mocke
 
 ## Inputs
 
-| Input                 | Default               | Description                                                                  |
-| --------------------- | --------------------- | ---------------------------------------------------------------------------- |
-| `grok_auth_json`      | _(required)_          | Contents of `~/.grok/auth.json`.                                             |
+| Input                 | Default               | Description                                                                 |
+| --------------------- | --------------------- | --------------------------------------------------------------------------- |
+| `grok_auth_json`      | _(required)_          | Contents of `~/.grok/auth.json`.                                            |
 | `github_token`        | `${{ github.token }}` | Default token posts as `github-actions[bot]`. Pass a PAT for your own name. |
-| `pr_number`           | event PR              | Review a specific PR (for `workflow_dispatch`).                              |
-| `model`               | CLI default           | e.g. `grok-build`.                                                           |
-| `effort`              | CLI default           | `low` to `max`.                                                              |
-| `max_turns`           | `50`                  | Max agentic turns.                                                           |
-| `fail_on`             | `never`               | `never` \| `bugs` \| `any`.                                                  |
-| `roast_level`         | `playful`             | See above.                                                                   |
-| `custom_instructions` | _(empty)_             | Extra review rules, injected into the prompt.                                |
-| `status_comments`     | `true`                | Live status comment on/off.                                                  |
-| `max_diff_kb`         | `300`                 | Diff size in the prompt before truncation.                                   |
+| `pr_number`           | event PR              | Review a specific PR (for `workflow_dispatch`).                             |
+| `model`               | CLI default           | e.g. `grok-build`.                                                          |
+| `effort`              | CLI default           | `low` to `max`.                                                             |
+| `max_turns`           | `50`                  | Max agentic turns.                                                          |
+| `fail_on`             | `never`               | `never` \| `bugs` \| `any`.                                                 |
+| `roast_level`         | `playful`             | See above.                                                                  |
+| `custom_instructions` | _(empty)_             | Extra review rules, injected into the prompt.                               |
+| `status_comments`     | `true`                | Live status comment on/off.                                                 |
+| `max_diff_kb`         | `300`                 | Diff size in the prompt before truncation.                                  |
 
 ## Outputs
 

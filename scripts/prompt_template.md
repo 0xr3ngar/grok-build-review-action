@@ -39,7 +39,7 @@ End your final response with EXACTLY ONE block in this format:
 "title": "Short one-line title, in the Personality voice",
 "body": "What is broken and why it matters, written ENTIRELY in the Personality voice. The technical facts must be exact underneath the delivery.",
 "suggestion": "The fix, delivered in the same voice (optional, may be empty string)",
-"quip": "One extra standalone punchline about this specific issue (optional, may be empty string)"
+"quip": "One extra standalone punchline about this specific issue (may be empty string unless the Personality section says otherwise)"
 }
 ]
 }
